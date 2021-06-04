@@ -196,7 +196,7 @@ class PhenoDigm:
         assert self.ontology.select('phenotype_id').distinct().count() == self.ontology.count(), \
             f'Encountered multiple names for the same term in the ontology table.'
 
-    def generate_phenodigm_evidence_strings(self, score_cutoff):
+    def generate_phenodigm_evidence_strings(self, score_cutoff, ontology_mapping):
         """Generate the evidence by renaming, transforming and joining the columns."""
         # Process ontology information to enable MP and HP term lookup based on the ID.
         mp_terms, hp_terms = (
@@ -320,6 +320,13 @@ class PhenoDigm:
                     'targetFromSourceId', 'targetInModel', 'targetInModelId')
         )
 
+        # Merge ontology mapping information
+        ontology_mapping = self.spark.read.csv(ontology_mapping, sep='\t', header=True, nullValue='null')
+        self.evidence = (
+            self.evidence
+            .join(ontology_mapping, on='diseaseFromSourceId', how='left')
+        )
+
     def write_evidence_strings(self, evidence_strings_filename):
         """Dump the Spark evidence dataframe as a compressed JSON file. The order of the evidence strings is not
         maintained, and they are returned in random order as collected by Spark."""
@@ -333,7 +340,7 @@ class PhenoDigm:
             os.rename(os.path.join(tmp_dir_name, json_chunks[0]), evidence_strings_filename)
 
 
-def main(cache_dir, output, score_cutoff, use_cached=False, log_file=None):
+def main(cache_dir, output, score_cutoff, use_cached=False, log_file=None, ontology_mapping=None):
     # Initialize the logger based on the provided log file. If no log file is specified, logs are written to STDERR.
     logging_config = {
         'level': logging.INFO,
@@ -354,7 +361,7 @@ def main(cache_dir, output, score_cutoff, use_cached=False, log_file=None):
     phenodigm.load_data_from_cache()
 
     logging.info('Build the evidence strings.')
-    phenodigm.generate_phenodigm_evidence_strings(score_cutoff)
+    phenodigm.generate_phenodigm_evidence_strings(score_cutoff, ontology_mapping)
 
     logging.info('Collect and write the evidence strings.')
     phenodigm.write_evidence_strings(output)
@@ -371,5 +378,8 @@ if __name__ == '__main__':
     ), type=float, default=0.0)
     parser.add_argument('--use-cached', help='Use the existing cache and do not update it.', action='store_true')
     parser.add_argument('--log-file', help='Optional filename to redirect the logs into.')
+
+    parser.add_argument('--ontology-mapping')
+
     args = parser.parse_args()
-    main(args.cache_dir, args.output, args.score_cutoff, args.use_cached, args.log_file)
+    main(args.cache_dir, args.output, args.score_cutoff, args.use_cached, args.log_file, args.ontology_mapping)
