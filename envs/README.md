@@ -30,6 +30,7 @@ Add or update any direct dependencies to [`environment.yml`](environment.yml) (C
 
 Recreate and activate the environment:
 ```bash
+if [[ "${CONDA_DEFAULT_ENV}" == "evidence_datasource_parsers" ]]; then conda deactivate; fi
 conda env remove -n evidence_datasource_parsers
 conda env create -f environment.yml
 conda activate evidence_datasource_parsers

@@ -228,7 +228,7 @@ rule panelApp:
         GS.remote(logFile)
     shell:
         """
-        python modules/GenomicsEnglandPanelApp.py \
+        python modules/PanelApp.py \
             --inputFile {input.inputFile} \
             --outputFile {output.evidenceFile}
         """
